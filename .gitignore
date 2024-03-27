@@ -1,0 +1,13 @@
+# Compiled binary files
+*.exe
+*.dll
+
+# Backup & temporary files
+*.bak
+*.tmp
+
+# Other files to ignore
+*.dproj.local
+*.identcache
+__history/
+__recovery/
