@@ -1,6 +1,10 @@
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, accuracy_score
 import re, pandas as pd
 
 class DataPreprocessor:
@@ -63,20 +67,34 @@ print(preprocessed_text)
 """
 
 class FeatureExtractor:
-    def __init__(self, documents):
-        self.documents = documents
+    def __init__(self):
+        self.vectorizer = CountVectorizer()
 
-    def extract_features(self, text):
-        pass
+    def fit_transform(self, documents):
+        # Fit the model and transform documents into feature vectors
+        return self.vectorizer.fit_transform(documents)
+
+    def transform(self, text):
+        # Transform new documents using the fitted model
+        return self.vectorizer.transform(text)
 
 class SentimentClassifier:
     def __init__(self, preprocessor, feature_extractor):
         self.preprocessor = preprocessor
         self.feature_extractor = feature_extractor
-        self.classifier = None
+        self.classifier = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 0)
 
-    def train(self, training_data):
-        pass
+    def train(self, X, y):
+        # Preprocess and extract features from X
+        preprocessed_texts = [self.preprocessor.preprocess_text(text) for text in X]
+        features = self.feature_extractor.extract_features(preprocessed_texts)
+        X_train, X_test, y_train, y_test = train_test_split(features, y, test_size = 0.2, random_state = 0)
+        self.classifier.fit(X_train, y_train)
+        y_pred = self.classifier.predict(X_test)
+        print(confusion_matrix(y_test, y_pred))
+        print(accuracy_score(y_test, y_pred))
 
     def predict(self, text):
-        pass
+        preprocessed_text = self.preprocessor.preprocess_text(text)
+        features = self.feature_extractor.vectorizer.transform([preprocessed_text])
+        return self.classifier.predict(features)
