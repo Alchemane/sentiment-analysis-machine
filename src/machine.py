@@ -5,7 +5,9 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score
-import re, pandas as pd
+import re, pandas as pd, joblib, os, nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 
 class DataPreprocessor:
     def __init__(self):
@@ -37,8 +39,6 @@ class DataPreprocessor:
             return self.load_and_preprocess_csv(filepath)
         elif filepath.endswith('.tsv'):
             return self.load_and_preprocess_tsv(filepath)
-        elif filepath.endswith('.txt'):
-            return self.load_and_preprocess_txt(filepath)
         else:
             raise ValueError("Unsupported file type") # Maybe I'll add more?
 
@@ -52,13 +52,9 @@ class DataPreprocessor:
         # Load data from a TSV file and preprocess it
         df = pd.read_csv(filepath, sep='\t', encoding='utf-8')
         text_data = df.iloc[:, 0]  # Assuming text is in the first column
-        return [self.preprocess_text(text) for text in text_data]
-
-    def load_and_preprocess_txt(self, filepath):
-        # Load data from a plain text file and preprocess it
-        with open(filepath, 'r', encoding='utf-8') as file:
-            text_data = file.read()
-        return self.preprocess_text(text_data)
+        sentiment_data = df.iloc[:, 1]  # Assuming sentiment is in the second column
+        preprocessed_texts = [self.preprocess_text(text) for text in text_data]
+        return preprocessed_texts, sentiment_data
 
 """
 preprocessor = DataPreprocessor()
@@ -84,17 +80,94 @@ class SentimentClassifier:
         self.feature_extractor = feature_extractor
         self.classifier = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 0)
 
+    def train_on_default_data(self):
+        filepath = 'path/to/Restaurant_Reviews.tsv'
+        preprocessed_texts, sentiments = self.preprocessor.load_and_preprocess_tsv(filepath)
+        features = self.feature_extractor.fit_transform(preprocessed_texts)
+        X_train, X_test, y_train, y_test = train_test_split(features, sentiments, test_size=0.2, random_state=0)
+        self.classifier.fit(X_train, y_train)
+
     def train(self, X, y):
-        # Preprocess and extract features from X
-        preprocessed_texts = [self.preprocessor.preprocess_text(text) for text in X]
-        features = self.feature_extractor.extract_features(preprocessed_texts)
-        X_train, X_test, y_train, y_test = train_test_split(features, y, test_size = 0.2, random_state = 0)
+        # Convert X to features
+        features = self.feature_extractor.fit_transform(X)  # Use fit_transform here
+        X_train, X_test, y_train, y_test = train_test_split(features, y, test_size=0.2, random_state=0)
         self.classifier.fit(X_train, y_train)
         y_pred = self.classifier.predict(X_test)
         print(confusion_matrix(y_test, y_pred))
         print(accuracy_score(y_test, y_pred))
 
+    def save_model(self, model_path):
+        joblib.dump(self.classifier, model_path)
+        print(f"Model saved to {model_path}.")
+
+    def load_model(self, model_path):
+        self.classifier = joblib.load(model_path)
+        print(f"Model loaded from {model_path}.")
+
     def predict(self, text):
         preprocessed_text = self.preprocessor.preprocess_text(text)
         features = self.feature_extractor.vectorizer.transform([preprocessed_text])
         return self.classifier.predict(features)
+    
+def analyze_sentiment(text, model_path=None, train_new=False, user_data_path=None):
+    """
+    Entry point for analyzing sentiment of the given text.
+    
+    Parameters:
+    - text: The text to analyze.
+    - model_path: Path to a saved model to load. If None, use default training or train_new.
+    - train_new: If True, train a new model using user_data_path or default data if user_data_path is None.
+    - user_data_path: Path to user-provided training data. Used if train_new is True.
+    """
+    # Correcting the path for pretrained models
+    current_script_path = os.path.abspath(__file__)
+    project_root = os.path.dirname(current_script_path)
+    default_data_path = os.path.join(project_root, '..', 'resources', 'Restaurant_Reviews.tsv')
+    pretrained_models_path = os.path.join(project_root, '..', 'resources', 'Pre-trained Models', 'pretrained_model.joblib')
+
+    preprocessor = DataPreprocessor()
+    feature_extractor = FeatureExtractor()
+    classifier = SentimentClassifier(preprocessor, feature_extractor)
+    
+    # Decide on the action based on the provided parameters
+    if model_path and os.path.exists(model_path):
+        # Load the specified pre-trained model
+        classifier.load_model(model_path)
+    elif os.path.exists(pretrained_models_path) and not train_new:
+        # Load the default pre-trained model if it exists and training a new model is not requested
+        classifier.load_model(pretrained_models_path)
+    else:
+        # Train a new model
+        if user_data_path:
+            # Load and preprocess user-provided data, then train a new model
+            X, y = preprocessor.load_data(user_data_path)
+        else:
+            # Use default training data
+            X, y = preprocessor.load_data(default_data_path)
+        classifier.train(X, y)
+        # Optionally, save the newly trained model
+        classifier.save_model(pretrained_models_path)
+    
+    # Make a prediction
+    prediction = classifier.predict(text)
+    return prediction[0]  # Assuming binary classification (0 or 1)
+
+""" Delphi use case*
+uses
+  PythonEngine;
+
+procedure TForm1.AnalyzeText(const Text: string);
+var
+  PyResult: Variant;
+begin
+  PyResult := PythonEngine.ExecString(Format('analyze_sentiment("%s", "path/to/model.pkl")', [Text]));
+  ShowMessage('Prediction: ' + VarToStr(PyResult));
+end;
+"""
+
+if __name__ == "__main__":
+    # Sample text to analyze
+    sample_text = "I was really looking forward to trying out this new cafe in town, but unfortunately, the experience was underwhelming. The coffee was mediocre at best, and the pastries were stale. The ambiance of the place was quite nice, though, with comfortable seating and a cozy atmosphere. However, the slow service and lackluster food quality would make me think twice before visiting again."
+    model_path = None
+    prediction = analyze_sentiment(sample_text, model_path=model_path, train_new=False, user_data_path=None)
+    print(f"Prediction for the sample text: {'Positive' if prediction == 1 else 'Negative'}")
