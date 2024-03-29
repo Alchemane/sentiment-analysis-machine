@@ -9,6 +9,9 @@ import re, pandas as pd, joblib, os, nltk
 nltk.download('stopwords')
 nltk.download('punkt')
 
+from settings import Settings
+from command_handler import CommandHandler
+
 class DataPreprocessor:
     def __init__(self):
         self.stop_words = set(stopwords.words('english'))
@@ -56,12 +59,6 @@ class DataPreprocessor:
         preprocessed_texts = [self.preprocess_text(text) for text in text_data]
         return preprocessed_texts, sentiment_data
 
-"""
-preprocessor = DataPreprocessor()
-preprocessed_text = preprocessor.load_data('example.txt')
-print(preprocessed_text)
-"""
-
 class FeatureExtractor:
     def __init__(self):
         self.vectorizer = CountVectorizer()
@@ -76,9 +73,10 @@ class FeatureExtractor:
 
 class SentimentClassifier:
     def __init__(self, preprocessor, feature_extractor):
+        settings = Settings()
         self.preprocessor = preprocessor
         self.feature_extractor = feature_extractor
-        self.classifier = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 0)
+        self.classifier = RandomForestClassifier(**settings.model_params)
 
     def train_on_default_data(self):
         filepath = 'path/to/Restaurant_Reviews.tsv'
@@ -151,23 +149,3 @@ def analyze_sentiment(text, model_path=None, train_new=False, user_data_path=Non
     # Make a prediction
     prediction = classifier.predict(text)
     return prediction[0]  # Assuming binary classification (0 or 1)
-
-""" Delphi use case*
-uses
-  PythonEngine;
-
-procedure TForm1.AnalyzeText(const Text: string);
-var
-  PyResult: Variant;
-begin
-  PyResult := PythonEngine.ExecString(Format('analyze_sentiment("%s", "path/to/model.pkl")', [Text]));
-  ShowMessage('Prediction: ' + VarToStr(PyResult));
-end;
-"""
-
-if __name__ == "__main__":
-    # Sample text to analyze
-    sample_text = "I was really looking forward to trying out this new cafe in town, but unfortunately, the experience was underwhelming. The coffee was mediocre at best, and the pastries were stale. The ambiance of the place was quite nice, though, with comfortable seating and a cozy atmosphere. However, the slow service and lackluster food quality would make me think twice before visiting again."
-    model_path = None
-    prediction = analyze_sentiment(sample_text, model_path=model_path, train_new=False, user_data_path=None)
-    print(f"Prediction for the sample text: {'Positive' if prediction == 1 else 'Negative'}")
