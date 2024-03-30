@@ -1,15 +1,22 @@
-import json
+import json, os
 
-class Settings:
+class SingletonMeta(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+class Settings(metaclass=SingletonMeta):
     def __init__(self, settings_file=None):
-        # Initialize default settings
-        self.estimators = 100
-        self.criterion = 'entropy'
-        self.max_depth = None
-        self.training_path = ''
-        self.pretrained_model_path = ''
-        
-        # Load settings from file if provided
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.model_params = {
+            'n_estimators': 100,
+            'criterion': 'entropy',
+            'max_depth': None
+        }
+        self.training_path = os.path.join(current_dir, '..', 'resources', 'training_data', 'Restaurant_Reviews.tsv')
+
         if settings_file:
             self.load_settings(settings_file)
 
@@ -17,12 +24,9 @@ class Settings:
         try:
             with open(settings_file, 'r') as file:
                 settings = json.load(file)
-            # Update class attributes based on file contents
-            self.estimators = settings.get('model_settings', {}).get('n_estimators', 100)
-            self.criterion = settings.get('model_settings', {}).get('criterion', 'entropy')
-            self.max_depth = settings.get('model_settings', {}).get('max_depth', None)
-            self.training_path = settings.get('data_paths', {}).get('training_data', '')
-            self.pretrained_model_path = settings.get('data_paths', {}).get('pretrained_model', '')
+            self.model_params.update(settings.get('model_settings', {}))
+            if 'training_path' in settings.get('data_paths', {}):
+                self.training_path = settings['data_paths']['training_path']
         except FileNotFoundError:
             print(f"Settings file {settings_file} not found. Using default settings.")
         except json.JSONDecodeError:
@@ -30,22 +34,13 @@ class Settings:
 
     def save_settings(self, settings_file):
         settings = {
-            'model_settings': {
-                'n_estimators': self.estimators,
-                'criterion': self.criterion,
-                'max_depth': self.max_depth
-            },
+            'model_settings': self.model_params,
             'data_paths': {
-                'training_data': self.training_path,
-                'pretrained_model': self.pretrained_model_path
+                'training_data': self.training_path
             }
         }
-        with open(settings_file, 'w') as file:
-            json.dump(settings, file, indent=4)
-
-# Example usage
-if __name__ == "__main__":
-    settings = Settings('path/to/settings.json')
-    print(settings.estimators, settings.criterion)
-    # Optionally, save updated settings
-    # settings.save_settings('path/to/updated_settings.json')
+        try:
+            with open(settings_file, 'w') as file:
+                json.dump(settings, file, indent=4)
+        except Exception as e:
+            print(f"Failed to save settings: {e}")

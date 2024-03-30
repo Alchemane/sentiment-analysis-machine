@@ -1,10 +1,10 @@
 from machine_learning import DataPreprocessor, FeatureExtractor, SentimentClassifier
 from settings import Settings
 import json, os
+settings = Settings()
 
 class CommandHandler:
     def __init__(self, settings_file='settings.json'):
-        self.settings = Settings()
         self.preprocessor = DataPreprocessor()
         self.feature_extractor = FeatureExtractor()
         self.classifier = SentimentClassifier(self.preprocessor, self.feature_extractor)
@@ -20,27 +20,23 @@ class CommandHandler:
             "load_model": self.load_model,
             "change_settings": self.change_settings,
         }
-        # Placeholder for loaded data and model
         self.training_data = None
         self.context_data = None
         self.model = None
 
     def handle_command(self, command, *args):
-        """Execute the command if it exists."""
         if command in self.commands:
             try:
                 return self.commands[command](*args)
-            except TypeError:
-                return f"Invalid arguments for command '{command}'"
+            except TypeError as e:
+                return f"Invalid arguments for command '{command}': {e}"
         else:
             return "Unknown command"
 
     def list_commands(self):
-        """List all available commands."""
         return "\n".join(self.commands.keys())
 
     def load_training_data(self, path):
-        # Actual logic to load training data
         try:
             self.training_data, self.training_labels = self.preprocessor.load_data(path)
             return f"Training data loaded from {path}"
@@ -48,7 +44,6 @@ class CommandHandler:
             return f"Failed to load training data: {e}"
 
     def load_context_data(self, path):
-        # Actual logic to load context data
         try:
             self.context_data = self.preprocessor.load_data(path, context=True)
             return f"Context data loaded from {path}"
@@ -66,15 +61,15 @@ class CommandHandler:
     def predict_sentiment(self, text=None):
         if not self.model:
             return "Model not loaded or trained."
-        
-        if text:
-            prediction = self.classifier.predict(text)
-            return f"Predicted sentiment for '{text}': {prediction}"
-        elif self.context_data:
-            predictions = [self.classifier.predict(data) for data in self.context_data]
-            return f"Predicted sentiments for context data: {predictions}"
-        else:
-            return "No text or context data provided."
+        if not text and self.context_data:
+            # Load context data from the file
+            with open(self.context_data, 'r', encoding='utf-8') as file:
+                text = file.read()
+        if not text:
+            return "No text provided for sentiment analysis."
+        # Proceed with sentiment analysis using the loaded or provided text
+        prediction = self.classifier.predict(text)
+        return f"Predicted sentiment: {'Positive' if prediction == 1 else 'Negative'}"
 
     def load_model(self, path):
         try:
@@ -84,28 +79,21 @@ class CommandHandler:
         except Exception as e:
             return f"Failed to load model: {e}"
 
-    def change_settings(self, setting, setting_arg):
-        # Example: Changing the number of estimators in the RandomForestClassifier
-        if setting == "n_estimators":
+    def change_settings(self, setting, value):
+        if setting in self.settings.model_params:
             try:
-                n_estimators = int(setting_arg)
-                self.settings.model_params['n_estimators'] = n_estimators
-                return f"Setting '{setting}' changed to {setting_arg}"
+                self.settings.model_params[setting] = int(value) if setting == 'n_estimators' else value
+                return f"Setting '{setting}' changed to {value}"
             except ValueError:
-                return "Invalid argument for n_estimators. Must be an integer."
+                return f"Invalid argument for {setting}. Must be an integer."
         else:
             return "Unknown setting."
         
     def save_settings(self):
-        try:
-            with open(self.settings_file, 'w') as file:
-                json.dump(self.settings, file)
-            return "Settings saved successfully."
-        except Exception as e:
-            return f"Failed to save settings: {e}"
+        self.settings.save_settings('settings.json')
+        return "Settings saved successfully."
 
     def load_settings(self):
-        """Load settings from a JSON file."""
         if os.path.exists(self.settings_file):
             with open(self.settings_file, 'r') as file:
                 self.settings = json.load(file)
