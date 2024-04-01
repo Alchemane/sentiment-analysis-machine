@@ -1,6 +1,5 @@
 from machine_learning import DataPreprocessor, FeatureExtractor, SentimentClassifier
 from settings import Settings
-import json, os
 settings = Settings()
 
 class CommandHandler:
@@ -9,7 +8,6 @@ class CommandHandler:
         self.preprocessor = DataPreprocessor()
         self.feature_extractor = FeatureExtractor(self.settings.feature_extraction_params)
         self.classifier = SentimentClassifier(self.preprocessor, self.feature_extractor, self.settings.model_params)
-        # Updated command mappings
         self.commands = {
             "list_cmd": self.list_commands,
             "load_training": self.load_training_data,
@@ -17,7 +15,7 @@ class CommandHandler:
             "train_model": self.train_model,
             "predict_sentiment": self.predict_sentiment,
             "load_model": self.load_model,
-            "change_settings": self.change_settings,
+            "change_setting": self.change_setting,
             "reset_settings": self.reset_settings,
         }
         self.training_data = None
@@ -79,7 +77,7 @@ class CommandHandler:
         except Exception as e:
             return f"Failed to load model: {e}"
 
-    def change_settings(self, setting_name, new_value):
+    def change_setting(self, setting_name, new_value):
         # Attempt to dynamically update a setting based on provided name and value
         if hasattr(self.settings, setting_name):
             # Convert new_value to the correct type based on the current setting's type
@@ -91,8 +89,6 @@ class CommandHandler:
                     new_value = float(new_value)
                 elif isinstance(current_value, bool):
                     new_value = new_value.lower() in ('true', '1', 't')
-                # Add more type conversions as necessary
-
                 # Update the setting
                 setattr(self.settings, setting_name, new_value)
                 self.settings.save_settings()  # Save changes to the JSON file
