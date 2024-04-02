@@ -1,0 +1,42 @@
+{
+    "context_path": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\context\\context.txt",
+    "current_model": "svc",
+    "feature_extraction_params": {
+        "max_features": null,
+        "ngram_range": [
+            1,
+            1
+        ],
+        "stop_words": "english"
+    },
+    "model_params": {
+        "n_estimators": 100,
+        "criterion": "entropy",
+        "max_depth": null
+    },
+    "model_save_path": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\saved models\\pretrained_model.pkl",
+    "model_specific_params": {
+        "svc": {
+            "kernel": "rbf",
+            "C": 1.0,
+            "gamma": "scale"
+        },
+        "rfr": {
+            "n_estimators": 100,
+            "max_depth": null
+        }
+    },
+    "preprocessing_params": {
+        "lower_case": true,
+        "remove_punctuation": true,
+        "stemming": true
+    },
+    "settings_dir": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\settings",
+    "settings_file": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\settings\\settings.json",
+    "training_params": {
+        "test_size": 0.2,
+        "random_state": 42
+    },
+    "training_path": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\training data\\Restaurant_Reviews.tsv",
+    "vectorizer_save_path": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\saved models\\vectorizer.pkl"
+}
