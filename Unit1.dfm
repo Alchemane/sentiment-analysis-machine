@@ -2,8 +2,8 @@ object SAM: TSAM
   Left = 0
   Top = 0
   Caption = 'Sentiment Analysis Machine'
-  ClientHeight = 499
-  ClientWidth = 694
+  ClientHeight = 498
+  ClientWidth = 690
   Color = 3355443
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -145,29 +145,37 @@ object SAM: TSAM
     0001000000000000000000000000000000000000000000000000000000000000
     0000000000000000000000000000000000000000000000000000800000018000
     0001C0000003E0000007F000000FF800001FFC00003FFE00007FFF8001FF}
+  OnCreate = FormCreate
+  DesignSize = (
+    690
+    498)
   TextHeight = 15
   object CommandLine: TMemo
-    Left = 8
+    Left = 7
     Top = 38
-    Width = 680
-    Height = 425
+    Width = 676
+    Height = 424
+    Anchors = [akLeft, akTop, akRight, akBottom]
     Color = 1710618
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWhite
-    Font.Height = -12
-    Font.Name = 'Segoe UI'
+    Font.Height = -13
+    Font.Name = 'Courier New'
     Font.Style = []
     Lines.Strings = (
       
-        '> Welcome to the Sentiment Analysis Machine. Plug in '#39'lst cmd'#39' f' +
-        'or a list of available commands. The following file formats '
+        '> Welcome to the Sentiment Analysis Machine. Plug in '#39'list_cmd'#39' ' +
+        'for a list of '
+      'available commands. Training data is exclusive to '
       
-        'are supported for both context analysis and training data: .txt,' +
-        ' .csv, and .tsv. Training data is unnecessary as default trainin' +
-        'g '
+        '.csv and .tsv files. Context data is exclusive to direct string ' +
+        'inputs and .txt '
+      'files. You may directly edit '#39'context.txt'#39' inside the '
       
-        'data is in place. Exercise caution when tuning model hyperparame' +
-        'ters.')
+        'context folder with your target text. Training data is unnecessa' +
+        'ry as default '
+      'training data is in place. Exercise caution when '
+      'tuning model hyperparameters.')
     ParentFont = False
     ParentShowHint = False
     ReadOnly = True
@@ -175,11 +183,12 @@ object SAM: TSAM
     TabOrder = 0
   end
   object CommandPrompt: TEdit
-    Left = 8
+    Left = 7
     Top = 469
-    Width = 680
+    Width = 676
     Height = 23
-    Color = 5066061
+    Anchors = [akLeft, akRight]
+    Color = 3355443
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clActiveBorder
     Font.Height = -12
@@ -187,12 +196,14 @@ object SAM: TSAM
     Font.Style = []
     ParentFont = False
     TabOrder = 1
-    TextHint = 'lst cmd'
+    TextHint = 'list_cmd'
+    OnKeyPress = CommandPromptKeyPress
+    ExplicitWidth = 672
   end
   object MenuPanel: TPanel
-    Left = 8
+    Left = 7
     Top = 7
-    Width = 25
+    Width = 30
     Height = 25
     BevelOuter = bvNone
     Caption = #9776
@@ -209,9 +220,9 @@ object SAM: TSAM
     OnMouseLeave = PanelMouseLeave
   end
   object ContextPanel: TPanel
-    Left = 39
+    Left = 36
     Top = 7
-    Width = 90
+    Width = 100
     Height = 25
     BevelOuter = bvNone
     Caption = 'Attach Context'
@@ -224,16 +235,17 @@ object SAM: TSAM
     ParentBackground = False
     ParentFont = False
     TabOrder = 3
+    OnClick = ContextPanelClick
     OnMouseEnter = PanelMouseEnter
     OnMouseLeave = PanelMouseLeave
   end
   object TrainingPanel: TPanel
-    Left = 135
+    Left = 134
     Top = 7
-    Width = 90
+    Width = 100
     Height = 25
     BevelOuter = bvNone
-    Caption = 'Upload Training'
+    Caption = 'Attach Training'
     Color = 3355443
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWhite
@@ -243,8 +255,24 @@ object SAM: TSAM
     ParentBackground = False
     ParentFont = False
     TabOrder = 4
-    OnClick = TrainingPanelClick
     OnMouseEnter = PanelMouseEnter
     OnMouseLeave = PanelMouseLeave
+  end
+  object PythonEngine1: TPythonEngine
+    DllName = 'python310.dll'
+    DllPath = 'C:\Users\Kevin\AppData\Local\Programs\Python\Python310\'
+    APIVersion = 1013
+    RegVersion = '3.10'
+    UseLastKnownVersion = False
+    IO = PythonGUIInputOutput1
+    Left = 656
+    Top = 8
+  end
+  object PythonGUIInputOutput1: TPythonGUIInputOutput
+    UnicodeIO = True
+    RawOutput = False
+    Output = CommandLine
+    Left = 520
+    Top = 8
   end
 end
