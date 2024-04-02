@@ -58,7 +58,8 @@ class DataPreprocessor:
         return preprocessed_texts, sentiment_data
 
 class FeatureExtractor:
-    def __init__(self, feature_extraction_params=None):
+    def __init__(self, preprocessor, feature_extraction_params=None):
+        self.preprocessor = preprocessor
         if feature_extraction_params is None:
             feature_extraction_params = {}
         # Convert list to tuple for 'ngram_range'
@@ -74,7 +75,8 @@ class FeatureExtractor:
 
     def transform(self, text):
         # Transform new documents using the fitted model
-        return self.vectorizer.transform(text)
+        processed_text = self.preprocessor.preprocess_text(text)
+        return self.vectorizer.transform([processed_text])
 
 class SentimentClassifier:
     def __init__(self, preprocessor, feature_extractor, model_params=None):
@@ -156,12 +158,13 @@ class SentimentClassifier:
     def predict(self, text):
         if not self.is_ready():
             return {"status": "error", "message": "Model and vectorizer must be loaded and ready before prediction."}
-
         try:
             preprocessed_text = self.preprocessor.preprocess_text(text)
             features = self.vectorizer.transform([preprocessed_text])
-            prediction = self.model.predict(features)
-            return prediction
+            raw_prediction = self.model.predict(features)
+            # Example of converting raw_prediction to sentiment label
+            sentiment = 'Positive' if raw_prediction[0] == 1 else 'Negative'
+            return {"status": "success", "sentiment": sentiment}
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
@@ -172,7 +175,7 @@ def analyze_sentiment(text=None, training_path=None, context_path=None):
         training_path = training_path or settings.training_path
         context_path = context_path or settings.context_path
         preprocessor = DataPreprocessor()
-        feature_extractor = FeatureExtractor()
+        feature_extractor = FeatureExtractor(preprocessor, settings.feature_extraction_params)
         classifier = SentimentClassifier(preprocessor, feature_extractor)
         if not classifier.is_ready():
             if training_path:

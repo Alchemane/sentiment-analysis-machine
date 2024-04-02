@@ -1,6 +1,6 @@
 {
     "context_path": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\context\\context.txt",
-    "current_model": "rfr",
+    "current_model": "svc",
     "feature_extraction_params": {
         "max_features": null,
         "ngram_range": [

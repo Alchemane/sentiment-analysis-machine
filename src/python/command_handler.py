@@ -1,4 +1,4 @@
-from machine_learning import DataPreprocessor, FeatureExtractor, SentimentClassifier
+from machine_learning import DataPreprocessor, FeatureExtractor, SentimentClassifier, analyze_sentiment
 from settings import Settings
 import textwrap
 
@@ -6,7 +6,7 @@ class CommandHandler:
     def __init__(self):
         self.settings = Settings()
         self.preprocessor = DataPreprocessor()
-        self.feature_extractor = FeatureExtractor(self.settings.feature_extraction_params)
+        self.feature_extractor = FeatureExtractor(self.preprocessor, self.settings.feature_extraction_params)
         self.classifier = SentimentClassifier(self.preprocessor, self.feature_extractor, self.settings.model_params)
         self.commands = {
             "list_cmd": self.list_commands,
@@ -17,6 +17,9 @@ class CommandHandler:
             "load_model": self.load_model,
             "change_setting": self.change_setting,
             "reset_settings": self.reset_settings,
+            "analyze_sentiment": self.analyze_sentiment,
+            "clear_context": self.clear_context,
+            "clear_training": self.clear_training,
         }
         self.training_data = None
         self.context_data = None
@@ -37,10 +40,13 @@ class CommandHandler:
             ("load_training {filepath}", "Loads training data from a specified .csv or .tsv file."),
             ("load_context {filepath}", "Loads context data for analysis from a specified .txt file."),
             ("train_model", "Trains the sentiment analysis model using the loaded training data."),
-            ("predict_sentiment {text}", "Predicts the sentiment of the provided text directly or loaded context."),
-            ("load_model {model_path}", "Loads a pre-trained model from the specified path."),
+            ("predict_sentiment {text}", "Predicts the sentiment of the provided text directly or loaded context. Parameter is optional."),
+            ("load_model {model_path}", "Loads a pre-trained model from the specified path. Parameter is optional."),
             ("change_setting {setting} {value}", "Updates a specific setting to the new specified value."),
             ("reset_settings", "Resets all settings to their default values."),
+            ("analyze_sentiment {text} {training_path} {context_path}", "Comprehensive command for analyzing context quickly. All parameters are optional."),
+            ("clear_context", "Clears the value of the context path in main memory."),
+            ("reset_settings", "Clears the value of the training path in main memory."),
         ]
         first_column_width = 25
         max_description_width = 75
@@ -77,7 +83,7 @@ class CommandHandler:
     def load_context_data(self, filepath):
         try:
             self.context_data = filepath
-            return "Context data loaded successfully."
+            return f"Context data loaded successfully from {filepath}."
         except Exception as e:
             return f"Failed to load context data: {e}"
 
@@ -94,7 +100,7 @@ class CommandHandler:
     def predict_sentiment(self, text=None):
         if not self.model:
             return "Model not loaded or trained."
-        
+
         context_path = self.context_data if self.context_data else self.settings.context_path
         if not text and context_path:
             try:
@@ -104,9 +110,13 @@ class CommandHandler:
                 return f"Context data file not found at {context_path}."
             except Exception as e:
                 return f"Failed to load context data from {context_path}: {e}"
+
         # Proceed with sentiment analysis using the loaded or provided text
-        prediction = self.classifier.predict(text)
-        return f"Predicted sentiment: {'Positive' if prediction == 1 else 'Negative'}"
+        prediction_response = self.classifier.predict(text)
+        if prediction_response["status"] == "success":
+            return f"Predicted sentiment: {prediction_response['sentiment']}"
+        else:
+            return f"Error predicting sentiment: {prediction_response['message']}"
 
     def load_model(self, path=None):
         try:
@@ -152,11 +162,21 @@ class CommandHandler:
         self.settings.reset_settings()
         return "Settings have been reset to defaults."
     
-if __name__ == "__main__":
-    handler = CommandHandler()
-    #handler.list_commands()
-    #print(handler.change_setting("current_model", "svc"))
+    def analyze_sentiment(self, text=None, training_path=None, context_path=None):
+        # Call the analyze_sentiment function
+        result = analyze_sentiment(text, training_path, context_path or self.context_data)
+        
+        # Format and return the analysis result
+        if result["status"] == "success":
+            sentiment = result.get("sentiment", "Unknown")
+            return f"Sentiment analysis result: {sentiment}"
+        else:
+            return f"Failed to analyze sentiment: {result.get('message', 'Unknown error')}"
+        
+    def clear_context(self):
+        self.context_data = None
+        return f"Cleared context data from main memory."
     
-    print(handler.reset_settings())
-    
-    
+    def clear_training(self):
+        self.training_data = None
+        return f"Cleared training data from main memory."
