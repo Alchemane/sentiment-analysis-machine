@@ -1,6 +1,6 @@
 from machine_learning import DataPreprocessor, FeatureExtractor, SentimentClassifier
 from settings import Settings
-settings = Settings()
+import textwrap
 
 class CommandHandler:
     def __init__(self):
@@ -32,26 +32,61 @@ class CommandHandler:
             return "Unknown command"
 
     def list_commands(self):
-        return "\n".join(self.commands.keys())
+        commands = [
+            ("list_cmd", "Lists all available commands for sentiment analysis."),
+            ("load_training {filepath}", "Loads training data from a specified .csv or .tsv file."),
+            ("load_context {filepath}", "Loads context data for analysis from a specified .txt file."),
+            ("train_model", "Trains the sentiment analysis model using the loaded training data."),
+            ("predict_sentiment {text}", "Predicts the sentiment of the provided text directly or loaded context."),
+            ("load_model {model_path}", "Loads a pre-trained model from the specified path."),
+            ("change_setting {setting} {value}", "Updates a specific setting to the new specified value."),
+            ("reset_settings", "Resets all settings to their default values."),
+        ]
+        first_column_width = 25
+        max_description_width = 75
+        formatted_commands = []
+        for command, description in commands:
+            wrapped_description_lines = textwrap.wrap(description, width=max_description_width)
+
+            first_line = f"{command.ljust(first_column_width)}{wrapped_description_lines[0]}"
+            formatted_commands.append(first_line)
+
+            for additional_line in wrapped_description_lines[1:]:
+                formatted_commands.append(' ' * first_column_width + additional_line)
+
+        # This directly prints the result, but you can return it instead if needed
+        formatted_command_list = "\n".join(formatted_commands)
+        print(formatted_command_list)
+        return formatted_command_list
 
     def load_training_data(self, path):
-        try:
-            self.training_data, self.training_labels = self.preprocessor.load_data(path)
-            return f"Training data loaded from {path}"
-        except Exception as e:
-            return f"Failed to load training data: {e}"
+        # Check the file extension to decide how to process the file
+        if path.endswith('.csv') or path.endswith('.tsv'):
+            try:
+                if path.endswith('.csv'):
+                    self.training_data, self.training_labels = self.preprocessor.preprocess_csv(path)
+                else:  # For '.tsv'
+                    self.training_data, self.training_labels = self.preprocessor.preprocess_tsv(path)
+                    
+                return "Training data loaded and preprocessed successfully."
+            except Exception as e:
+                return f"Failed to load training data: {e}"
+        else:
+            return "Unsupported file type. Please use .csv or .tsv files."
 
-    def load_context_data(self, path):
+    def load_context_data(self, filepath):
         try:
-            self.context_data = self.preprocessor.load_data(path, context=True)
-            return f"Context data loaded from {path}"
+            self.context_data = filepath
+            return "Context data loaded successfully."
         except Exception as e:
             return f"Failed to load context data: {e}"
 
     def train_model(self):
-        if self.training_data and self.training_labels:
+        # Ensure training_data and training_labels are not None and not empty
+        if self.training_data is not None and self.training_labels is not None and len(self.training_data) > 0 and len(self.training_labels) > 0:
             self.classifier.train(self.training_data, self.training_labels)
-            self.classifier.save_model(self.settings.model_path)
+            self.classifier.save_model(self.settings.model_save_path)
+            self.model = True
             return "Model trained and saved successfully."
         else:
             return "Training data not loaded."
@@ -59,27 +94,41 @@ class CommandHandler:
     def predict_sentiment(self, text=None):
         if not self.model:
             return "Model not loaded or trained."
-        if not text and self.context_data:
-            # Load context data from the file
-            with open(self.context_data, 'r', encoding='utf-8') as file:
-                text = file.read()
-        if not text:
-            return "No text provided for sentiment analysis."
+        
+        context_path = self.context_data if self.context_data else self.settings.context_path
+        if not text and context_path:
+            try:
+                with open(context_path, 'r', encoding='utf-8') as file:
+                    text = file.read()
+            except FileNotFoundError:
+                return f"Context data file not found at {context_path}."
+            except Exception as e:
+                return f"Failed to load context data from {context_path}: {e}"
         # Proceed with sentiment analysis using the loaded or provided text
         prediction = self.classifier.predict(text)
         return f"Predicted sentiment: {'Positive' if prediction == 1 else 'Negative'}"
 
-    def load_model(self, path):
+    def load_model(self, path=None):
         try:
-            self.classifier.load_model(path)
-            self.model = self.classifier.classifier
-            return f"Model loaded from {path}"
+            load_response = self.classifier.load_model(model_path=path, vectorizer_path=path)
+            if load_response["status"] == "success":
+                self.model = self.classifier.model
+                return f"Model loaded successfully from {path if path is not None else '/saved models.'}"
+            else:
+                return load_response["message"]
         except Exception as e:
             return f"Failed to load model: {e}"
 
     def change_setting(self, setting_name, new_value):
+        # Define valid options for the 'current_model' setting
+        valid_model_types = ['rfr', 'svc']
+
         # Attempt to dynamically update a setting based on provided name and value
         if hasattr(self.settings, setting_name):
+            # Special validation for 'current_model' to ensure it's a supported type
+            if setting_name == "current_model" and new_value not in valid_model_types:
+                return f"Error: '{new_value}' is not a supported model type. Please choose from {valid_model_types}."
+
             # Convert new_value to the correct type based on the current setting's type
             current_value = getattr(self.settings, setting_name)
             try:
@@ -102,3 +151,12 @@ class CommandHandler:
         # Reset settings to their defaults
         self.settings.reset_settings()
         return "Settings have been reset to defaults."
+    
+if __name__ == "__main__":
+    handler = CommandHandler()
+    #handler.list_commands()
+    #print(handler.change_setting("current_model", "svc"))
+    
+    print(handler.reset_settings())
+    
+    

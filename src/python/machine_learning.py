@@ -5,12 +5,11 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score
-from sklearn.svm import SVR
+from sklearn.svm import SVC
 import re, pandas as pd, nltk, pickle
 from settings import Settings
 nltk.download('stopwords')
 nltk.download('punkt')
-settings = Settings()
 
 class DataPreprocessor:
     def __init__(self):
@@ -59,8 +58,15 @@ class DataPreprocessor:
         return preprocessed_texts, sentiment_data
 
 class FeatureExtractor:
-    def __init__(self):
-        self.vectorizer = CountVectorizer()
+    def __init__(self, feature_extraction_params=None):
+        if feature_extraction_params is None:
+            feature_extraction_params = {}
+        # Convert list to tuple for 'ngram_range'
+        if 'ngram_range' in feature_extraction_params:
+            ngram_range = feature_extraction_params['ngram_range']
+            if isinstance(ngram_range, list):
+                feature_extraction_params['ngram_range'] = tuple(ngram_range)
+        self.vectorizer = CountVectorizer(**feature_extraction_params)
 
     def fit_transform(self, documents):
         # Fit the model and transform documents into feature vectors
@@ -71,42 +77,45 @@ class FeatureExtractor:
         return self.vectorizer.transform(text)
 
 class SentimentClassifier:
-    def __init__(self, preprocessor, feature_extractor):
+    def __init__(self, preprocessor, feature_extractor, model_params=None):
+        self.settings = Settings()
         self.preprocessor = preprocessor
         self.feature_extractor = feature_extractor
+        model_type = self.settings.current_model
+        if model_params is None:
+            model_params = {}
         model_constructors = {
             'rfr': RandomForestClassifier,
-            'svr': SVR
+            'svc': SVC
         }
-        model_params = settings.model_specific_params[settings.current_model]
-        model_constructor = model_constructors.get(settings.current_model)
+        
         # Initialization flags
-        self.model = None  # Initialize model attribute to None
-        self.vectorizer = None  # Initialize vectorizer attribute to None
+        self.model = None
+        self.vectorizer = None
         self.load_model()
 
-        if model_constructor:
-            self.classifier = model_constructor(**model_params)
+        if model_type in model_constructors:
+            self.classifier = model_constructors[model_type](**self.settings.model_specific_params.get(model_type, {}))
         else:
-            return {"status": "error", "message": "Unsupported model type: {settings.current_model}"}
+            raise ValueError(f"Unsupported model type: {model_type}")
 
     def train(self, X, y):
         features = self.feature_extractor.fit_transform(X)
-        X_train, X_test, y_train, y_test = train_test_split(features, y, test_size=settings.training_params['test_size'], random_state=settings.training_params['random_state'])
+        X_train, X_test, y_train, y_test = train_test_split(features, y, test_size=self.settings.training_params['test_size'], random_state=self.settings.training_params['random_state'])
         self.classifier.fit(X_train, y_train)
         y_pred = self.classifier.predict(X_test)
 
         cm = confusion_matrix(y_test, y_pred)
         acc = accuracy_score(y_test, y_pred)
 
-        self.save_model(settings.model_save_path)
+        self.save_model(self.settings.model_save_path)
         return {"status": "success", "confusion_matrix": cm.tolist(), "accuracy": acc}
 
     def save_model(self, model_path=None, vectorizer_path=None):
         response = {"status": "", "message": ""}
         try:
-            model_path = model_path if model_path else settings.model_save_path
-            vectorizer_path = vectorizer_path if vectorizer_path else settings.vectorizer_save_path
+            model_path = model_path if model_path else self.settings.model_save_path
+            vectorizer_path = vectorizer_path if vectorizer_path else self.settings.vectorizer_save_path
 
             with open(model_path, 'wb') as model_file:
                 pickle.dump(self.classifier, model_file)
@@ -120,20 +129,19 @@ class SentimentClassifier:
             response["message"] = f"Failed to save model and vectorizer: {e}"
         return response
 
-    def load_model(self):
+    def load_model(self, model_path=None, vectorizer_path=None):
         response = {"status": "", "message": ""}
+        model_path = model_path if model_path else self.settings.model_save_path
+        vectorizer_path = vectorizer_path if vectorizer_path else self.settings.vectorizer_save_path
+
         try:
-            with open(settings.model_save_path, 'rb') as model_file:
+            with open(model_path, 'rb') as model_file:
                 self.model = pickle.load(model_file)
-            with open(settings.vectorizer_save_path, 'rb') as vectorizer_file:
+            with open(vectorizer_path, 'rb') as vectorizer_file:
                 self.vectorizer = pickle.load(vectorizer_file)
 
-            if self.model and self.vectorizer:  # Check if both model and vectorizer are loaded
-                response["status"] = "success"
-                response["message"] = "Model and vectorizer loaded successfully."
-            else:
-                response["status"] = "error"
-                response["message"] = "Failed to load model and vectorizer. Consider training the model."
+            response["status"] = "success"
+            response["message"] = "Model and vectorizer loaded successfully."
         except Exception as e:
             response["status"] = "error"
             response["message"] = f"Loading failed: {e}"
@@ -153,14 +161,14 @@ class SentimentClassifier:
             preprocessed_text = self.preprocessor.preprocess_text(text)
             features = self.vectorizer.transform([preprocessed_text])
             prediction = self.model.predict(features)
-            sentiment = 'Positive' if prediction[0] == 1 else 'Negative'
-            return {"status": "success", "sentiment": sentiment}
+            return prediction
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
 def analyze_sentiment(text=None, training_path=None, context_path=None):
     response = {"status": "", "message": "", "sentiment": ""}
     try:
+        settings = Settings()
         training_path = training_path or settings.training_path
         context_path = context_path or settings.context_path
         preprocessor = DataPreprocessor()

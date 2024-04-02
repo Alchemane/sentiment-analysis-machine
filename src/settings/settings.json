@@ -16,10 +16,10 @@
     },
     "model_save_path": "c:\\Users\\Kevin\\Desktop\\Sentiment Analysis Machine\\src\\saved models\\pretrained_model.pkl",
     "model_specific_params": {
-        "svr": {
+        "svc": {
             "kernel": "rbf",
-            "C": 100,
-            "gamma": "auto"
+            "C": 1.0,
+            "gamma": "scale"
         },
         "rfr": {
             "n_estimators": 100,

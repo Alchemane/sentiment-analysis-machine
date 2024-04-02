@@ -33,7 +33,7 @@ class Settings(metaclass=SingletonMeta):
             'stemming': True,
         }
         self.model_specific_params = {
-            'svr': {'kernel': 'rbf', 'C': 100, 'gamma': 'auto'},
+            'svc': {'kernel': 'rbf', 'C': 1.0, 'gamma': 'scale'},
             'rfr': {'n_estimators': 100, 'max_depth': None},
         }
         self.current_model = 'rfr' # Optionally set to 'svr' for support vector regression
@@ -49,10 +49,23 @@ class Settings(metaclass=SingletonMeta):
         self.load_settings()
 
     def reset_settings(self):
-        # Reinitialize default settings
+        # Path to settings.json file
+        settings_file_path = self.settings_file
+        
+        # Check if file exists and delete it
+        if os.path.isfile(settings_file_path):
+            print(f"Deleting existing settings file: {settings_file_path}")
+            os.remove(settings_file_path)
+            print("Settings file deleted.")
+        else:
+            print("Settings file not found. Proceeding with reset.")
+
+        # Reinitialize settings to defaults
+        print("Resetting settings to defaults...")
         self.__init__()
-        self.save_settings()
-        print("Settings have been reset to defaults.")
+        result = self.save_settings()
+        print("Settings reset completed.")
+        return result
 
     def load_settings(self):
         if os.path.exists(self.settings_file):
@@ -65,22 +78,21 @@ class Settings(metaclass=SingletonMeta):
             except Exception as e:
                 print(f"Error loading settings from {self.settings_file}: {e}")
         else:
-            print(f"{self.settings_file} not found. Using default settings.")
             self.save_settings()  # Create the settings file with default settings
 
-
     def save_settings(self):
-        # Ensure the settings directory exists
+        print("Saving settings to JSON file...")
         os.makedirs(self.settings_dir, exist_ok=True)
-        
-        # Save current settings to the JSON file
         settings_dict = {attr: getattr(self, attr) for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))}
+        
         try:
             with open(self.settings_file, 'w') as file:
                 json.dump(settings_dict, file, indent=4)
-            print("Settings saved successfully.")
+            print("Settings saved successfully to:", self.settings_file)
+            return "Settings saved successfully."
         except Exception as e:
             print(f"Failed to save settings: {e}")
+            return f"Failed to save settings: {e}"
 
     def update_settings(self, **kwargs):
         for key, value in kwargs.items():
