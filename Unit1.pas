@@ -16,11 +16,13 @@ type
     TrainingPanel: TPanel;
     PythonEngine1: TPythonEngine;
     PythonGUIInputOutput1: TPythonGUIInputOutput;
+    OpenDialog1: TOpenDialog;
     procedure PanelMouseEnter(Sender: TObject);
     procedure PanelMouseLeave(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure CommandPromptKeyPress(Sender: TObject; var Key: Char);
-    procedure ContextPanelClick(Sender: TObject);
+    procedure BtnAttachTrainingClick(Sender: TObject);
+    procedure BtnAttachContextClick(Sender: TObject);
   private
     { Private declarations }
     procedure ProcessCommand(const Command: string);
@@ -45,6 +47,8 @@ begin
   PythonEngine1.ExecString(Format('sys.path.append(r"%s")', [StringReplace(ScriptPath, '\', '\\', [rfReplaceAll])]));
 
   PythonEngine1.ExecString('print(sys.version)');
+  PythonEngine1.ExecString('from command_handler import CommandHandler');
+  PythonEngine1.ExecString('command_handler_instance = CommandHandler()');
 end;
 
 // Menu buttons hover color event
@@ -72,26 +76,64 @@ procedure TSAM.ProcessCommand(const Command: string);
 var
   PyResult: PPyObject;
   ResultText: string;
+  PyList, PyItem: PPyObject;
+  i: Integer;
 begin
   CommandLine.Lines.Add('> ' + Command);
 
-  // Create an instance of CommandHandler and call handle_command
-  PythonEngine1.ExecString('from command_handler import CommandHandler');
-  PythonEngine1.ExecString('command_handler_instance = CommandHandler()');
-  PyResult := PythonEngine1.EvalString(Format('command_handler_instance.handle_command("%s")', [Command]));
-
-  if Assigned(PyResult) then
+  // Check if the command is 'list_cmd'
+  if Command = 'list_cmd' then
   begin
-    ResultText := PythonEngine1.PyObjectAsString(PyResult);
-    PythonEngine1.Py_DecRef(PyResult);
+    PyList := PythonEngine1.EvalString(Format('command_handler_instance.list_commands()', []));
+    if Assigned(PyList) and PythonEngine1.PyList_Check(PyList) then
+    begin
+      for i := 0 to PythonEngine1.PyList_Size(PyList) - 1 do
+      begin
+        PyItem := PythonEngine1.PyList_GetItem(PyList, i);
+        ResultText := PythonEngine1.PyObjectAsString(PyItem);
+        CommandLine.Lines.Add(ResultText);
+      end;
+      PythonEngine1.Py_DecRef(PyList);
+    end
+    else
+      CommandLine.Lines.Add('Error: command did not return a list.');
   end
   else
-    ResultText := 'Error executing command';
-
-  CommandLine.Lines.Add(ResultText);
+  begin
+    // Execute other commands
+    PyResult := PythonEngine1.EvalString(Format('command_handler_instance.handle_command("%s")', [Command]));
+    if Assigned(PyResult) then
+    begin
+      ResultText := PythonEngine1.PyObjectAsString(PyResult);
+      PythonEngine1.Py_DecRef(PyResult);
+      CommandLine.Lines.Add(ResultText);
+    end
+    else
+      CommandLine.Lines.Add('Error executing command.');
+  end;
 end;
 
+procedure TSAM.BtnAttachTrainingClick(Sender: TObject);
+var
+  FilePath: string;
+begin
+  if OpenDialog1.Execute then
+  begin
+    FilePath := OpenDialog1.FileName;
+    PythonEngine1.ExecString(Format('command_handler_instance.attach_training_data(r"%s")', [FilePath]));
+  end;
+end;
 
+procedure TSAM.BtnAttachContextClick(Sender: TObject);
+var
+  FilePath: string;
+begin
+  if OpenDialog1.Execute then
+  begin
+    FilePath := OpenDialog1.FileName;
+    PythonEngine1.ExecString(Format('command_handler_instance.attach_context_data(r"%s")', [FilePath]));
+  end;
+end;
 
 
 end.

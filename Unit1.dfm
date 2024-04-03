@@ -179,6 +179,7 @@ object SAM: TSAM
     ParentFont = False
     ParentShowHint = False
     ReadOnly = True
+    ScrollBars = ssVertical
     ShowHint = False
     TabOrder = 0
   end
@@ -198,6 +199,7 @@ object SAM: TSAM
     TabOrder = 1
     TextHint = 'list_cmd'
     OnKeyPress = CommandPromptKeyPress
+    ExplicitTop = 468
     ExplicitWidth = 672
   end
   object MenuPanel: TPanel
@@ -235,7 +237,7 @@ object SAM: TSAM
     ParentBackground = False
     ParentFont = False
     TabOrder = 3
-    OnClick = ContextPanelClick
+    OnClick = BtnAttachContextClick
     OnMouseEnter = PanelMouseEnter
     OnMouseLeave = PanelMouseLeave
   end
@@ -255,6 +257,7 @@ object SAM: TSAM
     ParentBackground = False
     ParentFont = False
     TabOrder = 4
+    OnClick = BtnAttachTrainingClick
     OnMouseEnter = PanelMouseEnter
     OnMouseLeave = PanelMouseLeave
   end
@@ -273,6 +276,10 @@ object SAM: TSAM
     RawOutput = False
     Output = CommandLine
     Left = 520
+    Top = 8
+  end
+  object OpenDialog1: TOpenDialog
+    Left = 480
     Top = 8
   end
 end
